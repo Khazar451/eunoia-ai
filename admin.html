@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Eunoia Admin Dashboard</title>
+  <style>
+    body {
+      background: #0d1117;
+      color: #94a3b8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 40px;
+    }
+    h1, h2 { color: #f8fafc; font-weight: 400; margin-top: 0; }
+    p { color: #cbd5e1; margin-bottom: 30px; }
+    
+    .breadcrumbs {
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+      color: #64748b;
+    }
+    .breadcrumbs span {
+      cursor: pointer;
+      color: #60a5fa;
+    }
+    .breadcrumbs span:hover { text-decoration: underline; }
+    
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    table {
+      width: 100%; border-collapse: collapse;
+      background: #1e293b; border-radius: 8px; overflow: hidden;
+    }
+    th, td { padding: 15px 20px; text-align: left; border-bottom: 1px solid #334155; }
+    th { font-size: 0.8rem; text-transform: uppercase; color: #94a3b8; font-weight: 600; background: #0f172a; }
+    td { font-size: 0.95rem; color: #f1f5f9; }
+    tr:last-child td { border-bottom: none; }
+    
+    tbody tr { cursor: pointer; transition: background 0.2s; }
+    tbody tr:hover { background: #334155; box-shadow: inset 2px 0 0 #60a5fa; }
+
+    .uuid { font-family: monospace; color: #64748b; font-size: 0.85rem; }
+    
+    .message-list {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 20px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .msg-box {
+      margin-bottom: 15px;
+      padding: 15px;
+      border-radius: 8px;
+      max-width: 80%;
+    }
+    .msg-user {
+      background: #0f172a;
+      border: 1px solid #334155;
+      margin-left: auto;
+      border-bottom-right-radius: 0;
+    }
+    .msg-assistant {
+      background: #192231;
+      border: 1px solid #475569;
+      margin-right: auto;
+      border-bottom-left-radius: 0;
+    }
+    .msg-role { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; margin-bottom: 5px; font-weight: bold; }
+    .msg-text { color: #f8fafc; line-height: 1.5; white-space: pre-wrap; font-size: 0.95rem; }
+    .msg-meta { font-size: 0.75rem; color: #64748b; margin-top: 10px; display: flex; justify-content: space-between; }
+    
+    .arousal-tag {
+      font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1);
+    }
+    .arousal-hyperarousal { color: #fbbf24; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251,191,36,0.3); }
+    .arousal-hypoarousal { color: #93c5fd; background: rgba(147, 197, 253, 0.1); border: 1px solid rgba(147,197,253,0.3); }
+
+    .tag { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: #334155; margin-right: 5px; }
+
+    .kick-btn {
+      background: #ef4444; color: white; border: none; padding: 4px 10px;
+      border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
+    }
+    .kick-btn:hover { background: #dc2626; box-shadow: 0 0 8px rgba(239, 68, 68, 0.4); }
+
+  </style>
+</head>
+<body>
+
+  <h1>Eunoia Administrative Dashboard</h1>
+  <p>Full Database Access Node. Click rows to inspect individual sessions and chat logs.</p>
+
+  <div class="breadcrumbs" id="breadcrumbs">
+    <span onclick="startDashboard()">Dashboard</span>
+  </div>
+
+  <!-- Users Panel -->
+  <div id="users-panel" class="panel active">
+    <h2>All Users</h2>
+    <table>
+      <thead>
+        <tr><th>User ID</th><th>Username</th><th>PIN</th><th>Total Sessions</th><th>Joined System</th><th>Last Active</th></tr>
+      </thead>
+      <tbody id="users-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Sessions Panel -->
+  <div id="sessions-panel" class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2 id="sessions-title">Sessions</h2>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Session ID</th><th>Clinical Phase</th><th>AI Turns</th><th>Distortions Targeted</th><th>Symptoms Documented</th><th>Start Date</th><th>Action</th></tr>
+      </thead>
+      <tbody id="sessions-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Messages Panel -->
+  <div id="messages-panel" class="panel">
+    <h2 id="messages-title">Chat Log</h2>
+    <div class="message-list" id="message-list"></div>
+  </div>
+
+  <script>
+    let currentPolling = null;
+
+    async function fetchUsers() {
+      try {
+        const res = await fetch('/api/admin/users');
+        const data = await res.json();
+        const tbody = document.getElementById('users-tbody');
+        tbody.innerHTML = '';
+        data.users.forEach(user => {
+          const tr = document.createElement('tr');
+          tr.onclick = () => viewSessions(user);
+          tr.innerHTML = `
+            <td class="uuid" title="${user.id}">${user.id.substring(0,8)}...</td>
+            <td style="color:#60a5fa; font-weight:500;">${user.username}</td>
+            <td style="font-family:monospace; color:#f87171; background:rgba(248,113,113,0.1); padding:2px 6px; border-radius:4px; display:inline-block; margin-top:12px;">${user.pin}</td>
+            <td><span style="background:rgba(52,211,153,0.1);color:#34d399;padding:2px 8px;border-radius:12px;font-weight:bold;">${user.session_count}</span></td>
+            <td>${new Date(user.created_at).toLocaleString()}</td>
+            <td>${new Date(user.last_seen).toLocaleString()}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) { console.error(err); }
+    }
+
+    async function viewSessions(user) {
+      clearInterval(currentPolling);
+      showPanel('sessions-panel', `Dashboard > <span onclick='viewSessions(${JSON.stringify(user)})'>${user.username}</span>`);
+      document.getElementById('sessions-title').textContent = `Clinical Sessions for ${user.username}`;
+      
+      try {
+        const res = await fetch(`/api/admin/users/${user.id}/sessions`);
+        const data = await res.json();
+        const tbody = document.getElementById('sessions-tbody');
+        tbody.innerHTML = '';
+        if(data.sessions.length === 0) {
+           tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No sessions recorded for this user.</td></tr>';
+        }
+        data.sessions.forEach(sess => {
+          const tr = document.createElement('tr');
+          
+          let actionHtml = '';
+          if (sess.phase !== 'closed') {
+            actionHtml = `<button class="kick-btn" onclick="event.stopPropagation(); kickSession('${sess.id}', '${user.id}')">Kick / Close Session</button>`;
+          }
+
+          tr.onclick = () => viewMessages(sess, user);
+          tr.innerHTML = `
+            <td class="uuid">${sess.id.substring(0,8)}...</td>
+            <td><span class="tag">${sess.phase}</span></td>
+            <td>${sess.turn_count}</td>
+            <td style="font-size:0.8rem; color:#cbd5e1">${sess.distortions_worked || '-'}</td>
+            <td style="font-size:0.8rem; color:#cbd5e1">${sess.symptoms_addressed || '-'}</td>
+            <td>${new Date(sess.started_at).toLocaleString()}</td>
+            <td>${actionHtml}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) { console.error(err); }
+    }
+
+    async function viewMessages(session, user) {
+      clearInterval(currentPolling);
+      showPanel('messages-panel', `Dashboard > <span onclick='viewSessions(${JSON.stringify(user)})'>${user.username}</span> > Session Log`);
+      document.getElementById('messages-title').textContent = `Chat Log (Session ${session.id.substring(0,8)})`;
+      
+      try {
+        const res = await fetch(`/api/admin/sessions/${session.id}/messages`);
+        const data = await res.json();
+        const list = document.getElementById('message-list');
+        list.innerHTML = '';
+        data.messages.forEach(msg => {
+          const box = document.createElement('div');
+          box.className = 'msg-box ' + (msg.role === 'user' ? 'msg-user' : 'msg-assistant');
+          
+          let arousalHtml = '';
+          if (msg.arousal_state && msg.arousal_state !== 'window_of_tolerance') {
+             arousalHtml = `<span class="arousal-tag arousal-${msg.arousal_state}">${msg.arousal_state}</span>`;
+          }
+
+          let tagsHtml = '';
+          if (msg.distortions) msg.distortions.split(',').filter(x=>x).forEach(d => tagsHtml += `<span class="tag">${d}</span>`);
+          if (msg.symptoms) msg.symptoms.split(',').filter(x=>x).forEach(s => tagsHtml += `<span class="tag">${s}</span>`);
+
+          box.innerHTML = `
+            <div class="msg-role">${msg.role === 'user' ? user.username : 'Eunoia AI'}</div>
+            <div class="msg-text">${msg.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+            <div class="msg-meta">
+              <span>${new Date(msg.timestamp).toLocaleString()}</span>
+              <span>${tagsHtml} ${arousalHtml}</span>
+            </div>
+          `;
+          list.appendChild(box);
+        });
+        
+        // Auto scroll to bottom of log
+        setTimeout(() => { list.scrollTop = list.scrollHeight; }, 100);
+      } catch (err) { console.error(err); }
+    }
+
+    function showPanel(id, breadcr = 'Dashboard') {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      document.getElementById('breadcrumbs').innerHTML = breadcr === 'Dashboard' 
+        ? '<span onclick="startDashboard()">Dashboard</span>' 
+        : '<span onclick="startDashboard()">Dashboard</span> > ' + breadcr;
+    }
+
+    function startDashboard() {
+      showPanel('users-panel', 'Dashboard');
+      fetchUsers();
+      clearInterval(currentPolling);
+      currentPolling = setInterval(fetchUsers, 10000);
+    }
+
+    async function kickSession(sessionId, userId) {
+      if (!confirm("Are you sure you want to forcibly terminate this user's active session?")) return;
+      try {
+        const res = await fetch(`/api/admin/sessions/${sessionId}/kick`, { method: 'POST' });
+        if (res.ok) {
+          // hacky way to refresh the view immediately
+          const tempUser = { id: userId, username: document.getElementById('sessions-title').textContent.replace('Clinical Sessions for ', '') };
+          viewSessions(tempUser);
+        }
+      } catch (e) {
+        console.error("Failed to kick:", e);
+      }
+    }
+
+    // Init
+    startDashboard();
+  </script>
+</body>
+</html>

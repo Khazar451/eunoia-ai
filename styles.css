@@ -799,6 +799,15 @@ code {
 
 .hidden { display: none !important; }
 
+/* ── Accessibility ──────────────────────────── */
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+#send-btn:focus-visible,
+.sidebar-toggle:focus-visible {
+  outline: 2px solid var(--accent-violet);
+  outline-offset: 2px;
+}
+
 /* ── Responsive ─────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar {

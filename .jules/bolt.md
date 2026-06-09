@@ -1,0 +1,4 @@
+## 2024-06-10 - Network-Bound Sequential Awaits in API Routes
+**Learning:** In the `/api/chat` and `/api/users/:id/profile` endpoints, database queries fetching disparate user information (patterns, sessions, recent messages) and pattern recording operations were executed sequentially via individual `await` calls. Since `database.js` interfaces with a cloud database (Supabase), each `await` constitutes a full network round trip. This serial execution creates an unnecessary performance bottleneck that linearly scales with the number of patterns being recorded.
+
+**Action:** Whenever fetching or saving multiple independent datasets or records over a network interface (like Supabase), aggregate the promises into an array and dispatch them concurrently using `Promise.all()`. This dramatically reduces the aggregate network latency, dropping it close to the latency of the single slowest operation rather than the sum of all operations.

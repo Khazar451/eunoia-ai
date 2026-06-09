@@ -340,7 +340,11 @@ app.get("/api/users/:id/profile", async (req, res) => {
   try {
     const user = await db.getUserById(req.params.id);
     if (!user) return res.status(404).json({ error: "User not found" });
-    res.json({ user, sessions: await db.getUserSessions(user.id, 10), patterns: await db.getUserPatterns(user.id) });
+    const [sessions, patterns] = await Promise.all([
+      db.getUserSessions(user.id, 10),
+      db.getUserPatterns(user.id)
+    ]);
+    res.json({ user, sessions, patterns });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -393,9 +397,11 @@ app.post("/api/chat", async (req, res) => {
     const user = await db.getUserById(userId);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const patterns = await db.getUserPatterns(userId);
-    const sessions = await db.getUserSessions(userId, 5);
-    const recentMsgs = await db.getRecentUserMessages(userId, 30);
+    const [patterns, sessions, recentMsgs] = await Promise.all([
+      db.getUserPatterns(userId),
+      db.getUserSessions(userId, 5),
+      db.getRecentUserMessages(userId, 30)
+    ]);
 
     // Build system prompt + clinical context note
     let systemPrompt = buildSystemPrompt(user, patterns, sessions);
@@ -431,14 +437,18 @@ app.post("/api/chat", async (req, res) => {
       clinicalContext.arousalState, clinicalContext.distortions, clinicalContext.symptoms);
 
     // Record clinical patterns
+    const patternPromises = [];
     if (clinicalContext.distortions) {
-      for (const d of clinicalContext.distortions) await db.recordPattern(userId, "cognitive_distortion", d);
+      for (const d of clinicalContext.distortions) patternPromises.push(db.recordPattern(userId, "cognitive_distortion", d));
     }
     if (clinicalContext.symptoms) {
-      for (const s of clinicalContext.symptoms) await db.recordPattern(userId, "symptom_cluster", s);
+      for (const s of clinicalContext.symptoms) patternPromises.push(db.recordPattern(userId, "symptom_cluster", s));
     }
     if (clinicalContext.arousalState && clinicalContext.arousalState !== "window_of_tolerance") {
-      await db.recordPattern(userId, "arousal_state", clinicalContext.arousalState);
+      patternPromises.push(db.recordPattern(userId, "arousal_state", clinicalContext.arousalState));
+    }
+    if (patternPromises.length > 0) {
+      await Promise.all(patternPromises);
     }
 
     // Get response

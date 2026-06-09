@@ -1,0 +1,4 @@
+## 2026-06-09 - Missing Authentication on Admin Endpoints
+**Vulnerability:** The admin panel (`/admin.html`) and associated endpoints (`/api/admin`) were completely exposed to unauthenticated users, leaking sensitive patient therapy session logs and allowing unauthorized session termination.
+**Learning:** In a monolith Express application, serving static files globally with `express.static()` before routing logic can unintentionally bypass backend API protections. Static pages interacting with sensitive APIs must also be guarded.
+**Prevention:** Always place protective middleware (like `adminAuth`) strictly *before* static file serving handlers to prevent direct access to sensitive HTML files, and ensure every sensitive route requires valid credentials. Apply a fail-secure default by disabling the interface if credentials are unset.

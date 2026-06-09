@@ -19,7 +19,6 @@ const db = require("./database");
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
-app.use(express.static(path.join(__dirname)));
 
 // ── Config ─────────────────────────────────────────────────────────────────
 
@@ -30,7 +29,26 @@ const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1:8b";
 const LLM_PROVIDER = process.env.LLM_PROVIDER || "auto";
 
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
 const groqEnabled = GROQ_API_KEY && GROQ_API_KEY !== "your_groq_api_key_here";
+
+function adminAuth(req, res, next) {
+  if (!ADMIN_PASSWORD) {
+    return res.status(403).json({ error: "Admin interface is disabled because ADMIN_PASSWORD is not set." });
+  }
+  const authHeader = req.headers.authorization || '';
+  const match = authHeader.match(/^Basic\s+(.*)$/);
+  if (match) {
+    const [user, pass] = Buffer.from(match[1], 'base64').toString().split(':');
+    if (user === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
+      return next();
+    }
+  }
+  res.setHeader('WWW-Authenticate', 'Basic realm="Eunoia Admin"');
+  res.status(401).send('Authentication required.');
+}
 
 // ── Trauma-Informed System Prompt ──────────────────────────────────────────
 
@@ -291,6 +309,10 @@ async function getLLMResponse(conversationHistory, systemPrompt, user, patterns)
 }
 
 // ── REST API ───────────────────────────────────────────────────────────────
+
+app.use('/admin.html', adminAuth);
+app.use('/api/admin', adminAuth);
+app.use(express.static(path.join(__dirname)));
 
 // POST /api/users/login
 app.post("/api/users/login", async (req, res) => {

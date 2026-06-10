@@ -88,13 +88,6 @@ async function incrementSessionCount(userId) {
   }
 }
 
-async function updateProfileNotes(userId, notes) {
-  await supabase
-    .from("users")
-    .update({ profile_notes: notes })
-    .eq("id", userId);
-}
-
 // ── Sessions ──────────────────────────────────────────────────────────────
 
 async function createSession(id, userId) {
@@ -262,7 +255,7 @@ async function getUserPatterns(userId) {
 
 module.exports = {
   createUser, getUserByUsername, getUserById, getAllUsers,
-  updateUserLastSeen, updateProfileNotes,
+  updateUserLastSeen,
   createSession, getSession, getUserSessions, closeSession, killSession, updateSessionPhase,
   saveMessage, getSessionMessages, getRecentUserMessages,
   recordPattern, getUserPatterns

@@ -393,9 +393,11 @@ app.post("/api/chat", async (req, res) => {
     const user = await db.getUserById(userId);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const patterns = await db.getUserPatterns(userId);
-    const sessions = await db.getUserSessions(userId, 5);
-    const recentMsgs = await db.getRecentUserMessages(userId, 30);
+    const [patterns, sessions, recentMsgs] = await Promise.all([
+      db.getUserPatterns(userId),
+      db.getUserSessions(userId, 5),
+      db.getRecentUserMessages(userId, 30)
+    ]);
 
     // Build system prompt + clinical context note
     let systemPrompt = buildSystemPrompt(user, patterns, sessions);
@@ -426,27 +428,31 @@ app.post("/api/chat", async (req, res) => {
     }
     history = sanitizedHistory;
 
-    // Persist user message
-    await db.saveMessage(sessionId, userId, "user", message,
-      clinicalContext.arousalState, clinicalContext.distortions, clinicalContext.symptoms);
+    // Persist user message and record clinical patterns concurrently
+    const dbWritePromises = [
+      db.saveMessage(sessionId, userId, "user", message,
+        clinicalContext.arousalState, clinicalContext.distortions, clinicalContext.symptoms)
+    ];
 
-    // Record clinical patterns
     if (clinicalContext.distortions) {
-      for (const d of clinicalContext.distortions) await db.recordPattern(userId, "cognitive_distortion", d);
+      for (const d of clinicalContext.distortions) dbWritePromises.push(db.recordPattern(userId, "cognitive_distortion", d));
     }
     if (clinicalContext.symptoms) {
-      for (const s of clinicalContext.symptoms) await db.recordPattern(userId, "symptom_cluster", s);
+      for (const s of clinicalContext.symptoms) dbWritePromises.push(db.recordPattern(userId, "symptom_cluster", s));
     }
     if (clinicalContext.arousalState && clinicalContext.arousalState !== "window_of_tolerance") {
-      await db.recordPattern(userId, "arousal_state", clinicalContext.arousalState);
+      dbWritePromises.push(db.recordPattern(userId, "arousal_state", clinicalContext.arousalState));
     }
+    await Promise.all(dbWritePromises);
 
     // Get response
     const { text: aiResponse, provider } = await getLLMResponse(history, systemPrompt, user, patterns);
 
     // Persist AI response + update session
-    await db.saveMessage(sessionId, userId, "assistant", aiResponse, "window_of_tolerance", [], []);
-    await db.updateSessionPhase(sessionId, clinicalContext.phase || "work", clinicalContext.turnCount || 0);
+    await Promise.all([
+      db.saveMessage(sessionId, userId, "assistant", aiResponse, "window_of_tolerance", [], []),
+      db.updateSessionPhase(sessionId, clinicalContext.phase || "work", clinicalContext.turnCount || 0)
+    ]);
 
     res.json({ response: aiResponse, provider });
 

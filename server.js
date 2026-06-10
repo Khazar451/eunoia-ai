@@ -2,7 +2,7 @@
  * server.js — Eunoia Clinical AI Backend
  *
  * LLM routing: Groq API (Llama 3.3 70B) → Ollama (local) → Built-in engine
- * Database: SQLite via better-sqlite3
+ * Database: Supabase
  * The built-in engine guarantees the app works with zero configuration.
  */
 

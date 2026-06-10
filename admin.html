@@ -126,6 +126,7 @@
     <div class="message-list" id="message-list"></div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
   <script>
     let currentPolling = null;
 
@@ -140,8 +141,8 @@
           tr.onclick = () => viewSessions(user);
           tr.innerHTML = `
             <td class="uuid" title="${user.id}">${user.id.substring(0,8)}...</td>
-            <td style="color:#60a5fa; font-weight:500;">${user.username}</td>
-            <td style="font-family:monospace; color:#f87171; background:rgba(248,113,113,0.1); padding:2px 6px; border-radius:4px; display:inline-block; margin-top:12px;">${user.pin}</td>
+            <td style="color:#60a5fa; font-weight:500;">${DOMPurify.sanitize(user.username)}</td>
+            <td style="font-family:monospace; color:#f87171; background:rgba(248,113,113,0.1); padding:2px 6px; border-radius:4px; display:inline-block; margin-top:12px;">${DOMPurify.sanitize(user.pin)}</td>
             <td><span style="background:rgba(52,211,153,0.1);color:#34d399;padding:2px 8px;border-radius:12px;font-weight:bold;">${user.session_count}</span></td>
             <td>${new Date(user.created_at).toLocaleString()}</td>
             <td>${new Date(user.last_seen).toLocaleString()}</td>
@@ -211,8 +212,8 @@
           if (msg.symptoms) msg.symptoms.split(',').filter(x=>x).forEach(s => tagsHtml += `<span class="tag">${s}</span>`);
 
           box.innerHTML = `
-            <div class="msg-role">${msg.role === 'user' ? user.username : 'Eunoia AI'}</div>
-            <div class="msg-text">${msg.content.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>
+            <div class="msg-role">${msg.role === 'user' ? DOMPurify.sanitize(user.username) : 'Eunoia AI'}</div>
+            <div class="msg-text">${DOMPurify.sanitize(msg.content.replace(/</g, "&lt;").replace(/>/g, "&gt;"))}</div>
             <div class="msg-meta">
               <span>${new Date(msg.timestamp).toLocaleString()}</span>
               <span>${tagsHtml} ${arousalHtml}</span>
@@ -231,7 +232,7 @@
       document.getElementById(id).classList.add('active');
       document.getElementById('breadcrumbs').innerHTML = breadcr === 'Dashboard' 
         ? '<span onclick="startDashboard()">Dashboard</span>' 
-        : '<span onclick="startDashboard()">Dashboard</span> > ' + breadcr;
+        : '<span onclick="startDashboard()">Dashboard</span> > ' + DOMPurify.sanitize(breadcr);
     }
 
     function startDashboard() {

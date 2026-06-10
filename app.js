@@ -337,7 +337,7 @@ function appendMessage(role, content, flags = {}) {
 
   const bubble = document.createElement("div");
   bubble.classList.add("bubble");
-  bubble.innerHTML = renderMarkdown(content);
+  bubble.innerHTML = DOMPurify.sanitize(renderMarkdown(content));
 
   const timestamp = document.createElement("span");
   timestamp.classList.add("msg-time");
@@ -459,7 +459,7 @@ async function endSession() {
 
 function showSessionSummary(summary) {
   const phaseInfo = PHASE_LABELS[summary.phase] || PHASE_LABELS.check_in;
-  summaryContent.innerHTML = `
+  summaryContent.innerHTML = DOMPurify.sanitize(`
     <div class="summary-grid">
       <div class="summary-item"><span class="summary-label">Duration</span><span class="summary-value">${summary.durationMinutes} min</span></div>
       <div class="summary-item"><span class="summary-label">Exchanges</span><span class="summary-value">${summary.turns}</span></div>
@@ -469,15 +469,15 @@ function showSessionSummary(summary) {
       <div class="summary-item wide"><span class="summary-label">Symptom Clusters Addressed</span><span class="summary-value capitalize">${summary.symptomsAddressed}</span></div>
       ${summary.anhedoniaPresent ? `<div class="summary-item wide anhedonia-flag"><span class="summary-label">⚠️ Note</span><span class="summary-value">Anhedonia indicators were present. Consider monitoring in future sessions.</span></div>` : ""}
     </div>
-  `;
+  `);
   sessionSummaryModal.classList.remove("hidden");
 }
 
 function clearChatAndRestart() {
-  chatMessages.innerHTML = `
+  chatMessages.innerHTML = DOMPurify.sanitize(`
     <div id="typing-indicator" class="hidden">
       <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
-    </div>`;
+    </div>`);
   sessionSeconds = 0;
   startSession();
 }
@@ -486,10 +486,10 @@ function switchUser() {
   clearInterval(sessionTimerInterval);
   currentUser = null;
   currentSession = null;
-  chatMessages.innerHTML = `
+  chatMessages.innerHTML = DOMPurify.sanitize(`
     <div id="typing-indicator" class="hidden">
       <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
-    </div>`;
+    </div>`);
   loginUsernameEl.value = "";
   loginPinEl.value = "";
   loginError.classList.add("hidden");

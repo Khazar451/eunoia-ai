@@ -5,7 +5,7 @@ Eunoia is a trauma‑informed, psychotherapy‑style conversational AI with a **
 It’s built as a simple web app:
 - **Frontend:** `index.html`, `app.js`, `styles.css` (served as static files)
 - **Backend:** `server.js` (Express)
-- **Persistence:** SQLite via `better-sqlite3` (`database.js`)
+- **Persistence:** Supabase via `@supabase/supabase-js` (`database.js`)
 
 ## Key Features
 
@@ -20,13 +20,13 @@ It’s built as a simple web app:
   - Crisis/self‑harm detection with immediate crisis resources
 - **Persistent sessions**
   - Users can “log in” with a username + PIN
-  - Sessions and messages are stored to SQLite
+  - Sessions and messages are stored to Supabase
   - Recent history is used to build context for the LLM
 
 ## Project Structure
 
 - `server.js` — Express API + LLM routing + static hosting
-- `database.js` — SQLite persistence layer (users, sessions, messages, patterns)
+- `database.js` — Supabase persistence layer (users, sessions, messages, patterns)
 - `engine.js` — built‑in Trauma‑Informed Clinical Engine (runs client-side)
 - `index.html` — main chat UI
 - `admin.html` — basic admin UI (browse users/sessions/messages)

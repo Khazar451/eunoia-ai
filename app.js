@@ -131,9 +131,13 @@ async function handleLogin() {
 
   loginError.classList.add("hidden");
 
-  if (!username) return showLoginError("Please enter your name.");
+  if (!username) {
+    showLoginError("Please enter your name.", loginUsernameEl);
+    return;
+  }
   if (!pin || pin.length !== 4 || !/^\d+$/.test(pin)) {
-    return showLoginError("PIN must be exactly 4 digits.");
+    showLoginError("PIN must be exactly 4 digits.", loginPinEl);
+    return;
   }
 
   loginBtn.disabled = true;
@@ -180,11 +184,15 @@ async function handleLogin() {
   loginBtn.textContent = "Continue →";
 }
 
-function showLoginError(msg) {
+function showLoginError(msg, elToFocus = null) {
   loginError.textContent = msg;
   loginError.classList.remove("hidden");
   loginBtn.disabled = false;
   loginBtn.textContent = "Continue →";
+  if (elToFocus) {
+    // Timeout needed because DOM focus update gets dropped sometimes immediately after disabled=false
+    setTimeout(() => elToFocus.focus(), 100);
+  }
 }
 
 function showDisclaimer(returning, user) {
@@ -368,7 +376,12 @@ function setTyping(active) {
   typingIndicator.classList.toggle("hidden", !active);
   sendBtn.disabled = active;
   userInput.disabled = active;
-  if (active) scrollToBottom();
+  if (active) {
+    scrollToBottom();
+  } else {
+    // Restore focus to input when AI finishes typing
+    userInput.focus();
+  }
 }
 
 // ── UI Updates ────────────────────────────────────────────────────────────
@@ -494,6 +507,7 @@ function switchUser() {
   loginPinEl.value = "";
   loginError.classList.add("hidden");
   loginModal.classList.remove("hidden");
+  loginUsernameEl.focus();
 }
 
 // ── Timer ─────────────────────────────────────────────────────────────────

@@ -76,6 +76,13 @@ async function updateUserLastSeen(userId) {
     .eq("id", userId);
 }
 
+async function updateUserPin(userId, hashedPin) {
+  await supabase
+    .from("users")
+    .update({ pin: hashedPin })
+    .eq("id", userId);
+}
+
 async function incrementSessionCount(userId) {
   // Supabase doesn't have a simple increment like SQL UPDATE x = x + 1, so we RPC or fetch/update.
   // Easiest is to select, then update, or we can just count sessions via relation.
@@ -262,7 +269,7 @@ async function getUserPatterns(userId) {
 
 module.exports = {
   createUser, getUserByUsername, getUserById, getAllUsers,
-  updateUserLastSeen, updateProfileNotes,
+  updateUserLastSeen, updateUserPin, updateProfileNotes,
   createSession, getSession, getUserSessions, closeSession, killSession, updateSessionPhase,
   saveMessage, getSessionMessages, getRecentUserMessages,
   recordPattern, getUserPatterns

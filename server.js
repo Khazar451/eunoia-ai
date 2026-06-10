@@ -14,6 +14,7 @@ const cors = require("cors");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 const fetch = require("node-fetch");
+const bcrypt = require("bcryptjs");
 const db = require("./database");
 
 const app = express();
@@ -299,12 +300,27 @@ app.post("/api/users/login", async (req, res) => {
   try {
     let user = await db.getUserByUsername(username);
     if (user) {
-      if (user.pin !== String(pin))
+      let isMatch = false;
+      if (user.pin.startsWith('$2a$') || user.pin.startsWith('$2b$') || user.pin.startsWith('$2y$')) {
+        isMatch = await bcrypt.compare(String(pin), user.pin);
+      } else {
+        // Plaintext fallback for backward compatibility
+        isMatch = (user.pin === String(pin));
+        if (isMatch) {
+          // Transparently upgrade to hash
+          const hashedPin = await bcrypt.hash(String(pin), 10);
+          await db.updateUserPin(user.id, hashedPin);
+          user.pin = hashedPin;
+        }
+      }
+
+      if (!isMatch)
         return res.status(401).json({ error: "Incorrect PIN. Please try again." });
       await db.updateUserLastSeen(user.id);
       return res.json({ user, sessions: await db.getUserSessions(user.id, 5), returning: true });
     }
-    user = await db.createUser(uuidv4(), username, String(pin));
+    const hashedPin = await bcrypt.hash(String(pin), 10);
+    user = await db.createUser(uuidv4(), username, hashedPin);
     return res.json({ user, sessions: [], returning: false });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

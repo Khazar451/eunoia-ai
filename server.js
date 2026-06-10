@@ -19,6 +19,31 @@ const db = require("./database");
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
+
+// ── Admin Authentication Middleware ─────────────────────────────────────────
+// 🛡️ Sentinel: Enforce Basic Auth on admin endpoints to prevent unauthorized access
+app.use((req, res, next) => {
+  if (req.path === "/admin.html" || req.path.startsWith("/api/admin/")) {
+    const adminUser = process.env.ADMIN_USERNAME;
+    const adminPass = process.env.ADMIN_PASSWORD;
+
+    if (!adminUser || !adminPass) {
+      return res.status(403).send("Admin access not configured");
+    }
+
+    const b64auth = (req.headers.authorization || "").split(" ")[1] || "";
+    const [login, password] = Buffer.from(b64auth, "base64").toString().split(":");
+
+    if (login && password && login === adminUser && password === adminPass) {
+      return next();
+    }
+
+    res.set("WWW-Authenticate", 'Basic realm="Admin Access"');
+    return res.status(401).send("Authentication required.");
+  }
+  return next();
+});
+
 app.use(express.static(path.join(__dirname)));
 
 // ── Config ─────────────────────────────────────────────────────────────────

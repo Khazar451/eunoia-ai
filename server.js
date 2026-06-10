@@ -19,6 +19,40 @@ const db = require("./database");
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
+
+// ── Admin Authentication Middleware ────────────────────────────────────────
+
+const adminAuthMiddleware = (req, res, next) => {
+  const adminUser = process.env.ADMIN_USERNAME;
+  const adminPass = process.env.ADMIN_PASSWORD;
+
+  // If no credentials configured, we still want to reject to prevent accidental exposure?
+  // Let's assume the memory meant the variables are required to access admin.
+  if (!adminUser || !adminPass) {
+    return res.status(500).json({ error: "Server configuration error: Admin credentials not set." });
+  }
+
+  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+  const decoded = Buffer.from(b64auth, 'base64').toString();
+
+  const colonIndex = decoded.indexOf(':');
+  if (colonIndex > 0) {
+    const login = decoded.substring(0, colonIndex);
+    const password = decoded.substring(colonIndex + 1);
+
+    if (login === adminUser && password === adminPass) {
+      return next();
+    }
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="Admin Access"');
+  return res.status(401).json({ error: "Authentication required." });
+};
+
+// Protect admin HTML page and all admin API endpoints natively via Express routing
+app.use('/admin.html', adminAuthMiddleware);
+app.use('/api/admin', adminAuthMiddleware);
+
 app.use(express.static(path.join(__dirname)));
 
 // ── Config ─────────────────────────────────────────────────────────────────
